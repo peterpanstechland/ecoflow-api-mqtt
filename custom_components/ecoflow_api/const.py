@@ -20,7 +20,7 @@ REGION_EU: Final = "eu"
 REGION_US: Final = "us"
 
 API_BASE_URL_EU: Final = "https://api-e.ecoflow.com"
-API_BASE_URL_US: Final = "https://api.ecoflow.com"
+API_BASE_URL_US: Final = "https://api-a.ecoflow.com"
 
 # Default to EU for backward compatibility
 API_BASE_URL: Final = API_BASE_URL_EU
@@ -28,7 +28,7 @@ API_TIMEOUT: Final = 30
 
 REGIONS: Final = {
     REGION_EU: "Europe (api-e.ecoflow.com)",
-    REGION_US: "United States (api.ecoflow.com)",
+    REGION_US: "United States (api-a.ecoflow.com)",
 }
 
 # Update interval

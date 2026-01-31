@@ -99,7 +99,7 @@ Data is decoded from `plugInInfo4p8xResv.resvInfo` array:
 #### Region Selection
 
 - **EU** - api-e.ecoflow.com
-- **US** - api.ecoflow.com
+- **US** - api-a.ecoflow.com
 - Select region during setup
 
 ### 🐛 Fixes
