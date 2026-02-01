@@ -30,11 +30,22 @@ import paho.mqtt.client as mqtt
 
 _LOGGER = logging.getLogger(__name__)
 
-# EcoFlow MQTT Configuration (defaults, should be overridden by API response)
-DEFAULT_MQTT_BROKER = "mqtt.ecoflow.com"
+# EcoFlow MQTT Configuration
+# IMPORTANT: API returns "mqtt.ecoflow.com" but the actual working broker is "mqtt-a.ecoflow.com" for US region
+# This was discovered through reverse engineering the EcoFlow mobile app
+DEFAULT_MQTT_BROKER_US = "mqtt-a.ecoflow.com"  # US region (discovered from app)
+DEFAULT_MQTT_BROKER_EU = "mqtt-e.ecoflow.com"  # EU region
+DEFAULT_MQTT_BROKER = DEFAULT_MQTT_BROKER_US   # Default to US
 DEFAULT_MQTT_PORT = 8883
 MQTT_KEEPALIVE = 60
 MQTT_PROTOCOL = mqtt.MQTTv311
+
+# Map API-returned broker URLs to actual working brokers
+MQTT_BROKER_MAP = {
+    "mqtt.ecoflow.com": "mqtt-a.ecoflow.com",  # API returns this, but use mqtt-a for US
+    "mqtt-e.ecoflow.com": "mqtt-e.ecoflow.com",  # EU broker is correct
+    "mqtt-a.ecoflow.com": "mqtt-a.ecoflow.com",  # Already correct
+}
 
 
 class EcoFlowMQTTClient:
@@ -69,8 +80,18 @@ class EcoFlowMQTTClient:
         self.on_message_callback = on_message_callback
         
         # MQTT broker settings from API (or defaults)
-        self._broker_url = broker_url or DEFAULT_MQTT_BROKER
+        # IMPORTANT: Map API-returned broker to actual working broker
+        # API returns "mqtt.ecoflow.com" but the actual working broker is "mqtt-a.ecoflow.com"
+        api_broker = broker_url or DEFAULT_MQTT_BROKER
+        self._broker_url = MQTT_BROKER_MAP.get(api_broker, api_broker)
         self._broker_port = broker_port or DEFAULT_MQTT_PORT
+        
+        if api_broker != self._broker_url:
+            _LOGGER.info(
+                "MQTT broker mapped: %s -> %s (API returns different broker than actual)",
+                api_broker,
+                self._broker_url
+            )
         
         # Client ID from API or generate default
         self._client_id = client_id or f"ha_ecoflow_{device_sn}"
