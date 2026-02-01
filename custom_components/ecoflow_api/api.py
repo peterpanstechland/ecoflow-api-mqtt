@@ -292,10 +292,11 @@ class EcoFlowApiClient:
 
         Returns:
             Dictionary with MQTT credentials: {
-                "url": "mqtt.ecoflow.com",
-                "port": 8883,
-                "certificateAccount": "...",
-                "certificatePassword": "..."
+                "url": "mqtt.ecoflow.com" (US) or "mqtt-e.ecoflow.com" (EU),
+                "port": "8883",
+                "protocol": "mqtts",
+                "certificateAccount": "open-xxx...",
+                "certificatePassword": "xxx..."
             }
         """
         result = await self._request("GET", "/iot-open/sign/certification")

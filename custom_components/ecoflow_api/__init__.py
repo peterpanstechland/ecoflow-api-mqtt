@@ -84,6 +84,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     mqtt_username = entry.options.get(CONF_MQTT_USERNAME)
     mqtt_password = entry.options.get(CONF_MQTT_PASSWORD)
     certificate_account = None
+    mqtt_broker_url = None
+    mqtt_broker_port = None
 
     # If MQTT enabled, get certificateAccount and certificatePassword from API
     if mqtt_enabled:
@@ -92,12 +94,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             mqtt_creds = await client.get_mqtt_credentials()
             certificate_account = mqtt_creds.get("certificateAccount")
             certificate_password = mqtt_creds.get("certificatePassword")
+            mqtt_broker_url = mqtt_creds.get("url")  # e.g., mqtt.ecoflow.com (US) or mqtt-e.ecoflow.com (EU)
+            mqtt_broker_port_str = mqtt_creds.get("port")  # e.g., "8883"
+            
+            # Parse port (API may return string or int)
+            if mqtt_broker_port_str:
+                try:
+                    mqtt_broker_port = int(mqtt_broker_port_str)
+                except (ValueError, TypeError):
+                    mqtt_broker_port = 8883  # Default
 
             if certificate_account and certificate_password:
                 _LOGGER.info(
                     "✅ Received MQTT credentials from API: "
+                    "broker=%s:%s, "
                     "certificateAccount=%s (length=%d), "
                     "certificatePassword=*** (length=%d)",
+                    mqtt_broker_url or "default",
+                    mqtt_broker_port or 8883,
                     certificate_account[:20] + "..." if len(certificate_account) > 20 else certificate_account,
                     len(certificate_account),
                     len(certificate_password),
@@ -120,8 +134,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator: EcoFlowDataCoordinator | EcoFlowHybridCoordinator
     if mqtt_enabled and mqtt_username and mqtt_password:
         _LOGGER.info(
-            "Creating hybrid coordinator (REST + MQTT) for device %s",
+            "Creating hybrid coordinator (REST + MQTT) for device %s (broker: %s:%s)",
             entry.data[CONF_DEVICE_SN],
+            mqtt_broker_url or "default",
+            mqtt_broker_port or 8883,
         )
         coordinator = EcoFlowHybridCoordinator(
             hass=hass,
@@ -134,6 +150,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             mqtt_password=mqtt_password,
             mqtt_enabled=True,
             certificate_account=certificate_account,  # Pass certificate account for topics
+            mqtt_broker_url=mqtt_broker_url,  # Pass broker URL from API
+            mqtt_broker_port=mqtt_broker_port,  # Pass broker port from API
         )
         # Set up MQTT
         await coordinator.async_setup()

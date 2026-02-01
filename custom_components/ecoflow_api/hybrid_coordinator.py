@@ -46,6 +46,8 @@ class EcoFlowHybridCoordinator(EcoFlowDataCoordinator):
         mqtt_password: str | None = None,
         mqtt_enabled: bool = True,
         certificate_account: str | None = None,
+        mqtt_broker_url: str | None = None,
+        mqtt_broker_port: int | None = None,
     ) -> None:
         """Initialize hybrid coordinator.
         
@@ -60,6 +62,8 @@ class EcoFlowHybridCoordinator(EcoFlowDataCoordinator):
             mqtt_password: MQTT password (certificatePassword from API)
             mqtt_enabled: Whether to enable MQTT
             certificate_account: Certificate account for MQTT topics (same as username)
+            mqtt_broker_url: MQTT broker URL from API (e.g., mqtt.ecoflow.com for US)
+            mqtt_broker_port: MQTT broker port from API (default: 8883)
         """
         super().__init__(
             hass=hass,
@@ -74,6 +78,8 @@ class EcoFlowHybridCoordinator(EcoFlowDataCoordinator):
         self.mqtt_username = mqtt_username
         self.mqtt_password = mqtt_password
         self.certificate_account = certificate_account or mqtt_username
+        self.mqtt_broker_url = mqtt_broker_url
+        self.mqtt_broker_port = mqtt_broker_port
         
         self._mqtt_client: EcoFlowMQTTClient | None = None
         self._mqtt_data: dict[str, Any] = {}
@@ -151,6 +157,8 @@ class EcoFlowHybridCoordinator(EcoFlowDataCoordinator):
                 device_sn=self.device_sn,
                 on_message_callback=self._handle_mqtt_message,
                 certificate_account=self.certificate_account,
+                broker_url=self.mqtt_broker_url,
+                broker_port=self.mqtt_broker_port,
             )
             
             # Try to connect
@@ -161,14 +169,16 @@ class EcoFlowHybridCoordinator(EcoFlowDataCoordinator):
                 self._use_mqtt = True
                 self._logged_mqtt_connected = True
                 _LOGGER.info(
-                    "✅ MQTT connected to broker for device %s (hybrid mode: MQTT + REST every %ds)",
+                    "✅ MQTT connected to broker %s for device %s (hybrid mode: MQTT + REST every %ds)",
+                    self.mqtt_broker_url or "default",
                     self.device_sn[-4:],
                     self.update_interval_seconds
                 )
             else:
                 _LOGGER.warning(
-                    "⚠️ MQTT connection failed for device %s, using REST API only",
-                    self.device_sn[-4:]
+                    "⚠️ MQTT connection failed for device %s (broker: %s), using REST API only",
+                    self.device_sn[-4:],
+                    self.mqtt_broker_url or "default"
                 )
                 self._mqtt_connected = False
                 self._use_mqtt = False

@@ -4,16 +4,19 @@ This module provides MQTT connectivity for real-time updates from EcoFlow device
 Based on EcoFlow Developer API MQTT documentation.
 
 EcoFlow MQTT Protocol:
-- Broker: mqtt.ecoflow.com:8883 (TLS)
+- Broker: Dynamically obtained from API
+  - US region: mqtt.ecoflow.com (default)
+  - EU region: mqtt-e.ecoflow.com
+- Port: 8883 (TLS)
 - Protocol: MQTT v3.1.1
-- Authentication: Username/Password (EcoFlow account credentials)
+- Authentication: certificateAccount/certificatePassword from /iot-open/sign/certification API
 - Topics:
   - /open/{certificateAccount}/{sn}/quota - Device quota/status updates
   - /open/{certificateAccount}/{sn}/status - Device online/offline status
   - /open/{certificateAccount}/{sn}/set - Send commands to device
   - /open/{certificateAccount}/{sn}/set_reply - Command response from device
 
-Note: certificateAccount is typically the user_id or username from EcoFlow account.
+Note: All MQTT credentials and broker URL should be obtained from the certification API.
 """
 from __future__ import annotations
 
@@ -27,9 +30,9 @@ import paho.mqtt.client as mqtt
 
 _LOGGER = logging.getLogger(__name__)
 
-# EcoFlow MQTT Configuration
-MQTT_BROKER = "mqtt.ecoflow.com"
-MQTT_PORT = 8883
+# EcoFlow MQTT Configuration (defaults, should be overridden by API response)
+DEFAULT_MQTT_BROKER = "mqtt.ecoflow.com"
+DEFAULT_MQTT_PORT = 8883
 MQTT_KEEPALIVE = 60
 MQTT_PROTOCOL = mqtt.MQTTv311
 
@@ -44,20 +47,28 @@ class EcoFlowMQTTClient:
         device_sn: str,
         on_message_callback: Callable[[dict[str, Any]], None] | None = None,
         certificate_account: str | None = None,
+        broker_url: str | None = None,
+        broker_port: int | None = None,
     ) -> None:
         """Initialize MQTT client.
         
         Args:
-            username: EcoFlow account username/email (for MQTT authentication)
-            password: EcoFlow account password (for MQTT authentication)
+            username: certificateAccount from API (for MQTT authentication)
+            password: certificatePassword from API (for MQTT authentication)
             device_sn: Device serial number
             on_message_callback: Callback function for received messages
-            certificate_account: Certificate account/user_id for topics (if None, uses username)
+            certificate_account: Certificate account for topics (if None, uses username)
+            broker_url: MQTT broker URL from API (e.g., mqtt.ecoflow.com for US)
+            broker_port: MQTT broker port from API (default: 8883)
         """
         self.username = username
         self.password = password
         self.device_sn = device_sn
         self.on_message_callback = on_message_callback
+        
+        # MQTT broker settings from API (or defaults)
+        self._broker_url = broker_url or DEFAULT_MQTT_BROKER
+        self._broker_port = broker_port or DEFAULT_MQTT_PORT
         
         self._client: mqtt.Client | None = None
         self._connected = False
@@ -84,6 +95,13 @@ class EcoFlowMQTTClient:
             True if connection successful, False otherwise
         """
         try:
+            _LOGGER.info(
+                "Connecting to MQTT broker %s:%d for device %s",
+                self._broker_url,
+                self._broker_port,
+                self.device_sn
+            )
+            
             # Create MQTT client
             self._client = mqtt.Client(
                 client_id=f"ha_ecoflow_{self.device_sn}",
@@ -111,10 +129,8 @@ class EcoFlowMQTTClient:
             self._client.on_disconnect = self._on_disconnect
             self._client.on_message = self._on_message
             
-            # Connect to broker
-            
-            # Use loop_start() for async operation
-            self._client.connect_async(MQTT_BROKER, MQTT_PORT, MQTT_KEEPALIVE)
+            # Connect to broker (use URL from API, not hardcoded)
+            self._client.connect_async(self._broker_url, self._broker_port, MQTT_KEEPALIVE)
             self._client.loop_start()
             
             # Wait for connection (with timeout)
@@ -123,11 +139,21 @@ class EcoFlowMQTTClient:
                     return True
                 await asyncio.sleep(1)
             
-            _LOGGER.error("MQTT connection timeout for device %s", self.device_sn)
+            _LOGGER.error(
+                "MQTT connection timeout for device %s (broker: %s:%d)",
+                self.device_sn,
+                self._broker_url,
+                self._broker_port
+            )
             return False
             
         except Exception as err:
-            _LOGGER.error("Failed to connect to MQTT broker: %s", err)
+            _LOGGER.error(
+                "Failed to connect to MQTT broker %s:%d: %s",
+                self._broker_url,
+                self._broker_port,
+                err
+            )
             return False
 
     async def async_disconnect(self) -> None:
@@ -195,8 +221,8 @@ class EcoFlowMQTTClient:
             _LOGGER.info(
                 "✅ MQTT connected for device %s (broker: %s:%d)",
                 self.device_sn,
-                MQTT_BROKER,
-                MQTT_PORT
+                self._broker_url,
+                self._broker_port
             )
             _LOGGER.debug(
                 "MQTT subscribed topics: quota=%s, status=%s, set_reply=%s",
@@ -235,8 +261,8 @@ class EcoFlowMQTTClient:
                 "3. Try disabling and re-enabling MQTT in integration options\n"
                 "4. Check Home Assistant logs for 'Received MQTT credentials' message\n"
                 "5. Ensure your EcoFlow Developer account has MQTT access enabled",
-                MQTT_BROKER,
-                MQTT_PORT,
+                self._broker_url,
+                self._broker_port,
                 self.username[:20] + "..." if len(self.username) > 20 else self.username,
                 len(self.password) if self.password else 0,
                 self._certificate_account[:20] + "..." if len(self._certificate_account) > 20 else self._certificate_account,
