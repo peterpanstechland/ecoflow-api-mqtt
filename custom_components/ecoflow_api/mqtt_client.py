@@ -49,6 +49,7 @@ class EcoFlowMQTTClient:
         certificate_account: str | None = None,
         broker_url: str | None = None,
         broker_port: int | None = None,
+        client_id: str | None = None,
     ) -> None:
         """Initialize MQTT client.
         
@@ -60,6 +61,7 @@ class EcoFlowMQTTClient:
             certificate_account: Certificate account for topics (if None, uses username)
             broker_url: MQTT broker URL from API (e.g., mqtt.ecoflow.com for US)
             broker_port: MQTT broker port from API (default: 8883)
+            client_id: MQTT client ID from API (if None, uses ha_ecoflow_<sn>)
         """
         self.username = username
         self.password = password
@@ -69,6 +71,9 @@ class EcoFlowMQTTClient:
         # MQTT broker settings from API (or defaults)
         self._broker_url = broker_url or DEFAULT_MQTT_BROKER
         self._broker_port = broker_port or DEFAULT_MQTT_PORT
+        
+        # Client ID from API or generate default
+        self._client_id = client_id or f"ha_ecoflow_{device_sn}"
         
         self._client: mqtt.Client | None = None
         self._connected = False
@@ -95,16 +100,24 @@ class EcoFlowMQTTClient:
             True if connection successful, False otherwise
         """
         try:
-            _LOGGER.info(
-                "Connecting to MQTT broker %s:%d for device %s",
+            _LOGGER.warning(
+                "🔌 Connecting to MQTT broker:\n"
+                "  Broker: %s:%d\n"
+                "  Client ID: %s\n"
+                "  Username: %s\n"
+                "  Password length: %d\n"
+                "  Device SN: %s",
                 self._broker_url,
                 self._broker_port,
+                self._client_id,
+                self.username[:30] + "..." if len(self.username) > 30 else self.username,
+                len(self.password) if self.password else 0,
                 self.device_sn
             )
             
             # Create MQTT client
             self._client = mqtt.Client(
-                client_id=f"ha_ecoflow_{self.device_sn}",
+                client_id=self._client_id,
                 protocol=MQTT_PROTOCOL,
             )
             

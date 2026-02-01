@@ -48,6 +48,7 @@ class EcoFlowHybridCoordinator(EcoFlowDataCoordinator):
         certificate_account: str | None = None,
         mqtt_broker_url: str | None = None,
         mqtt_broker_port: int | None = None,
+        mqtt_client_id: str | None = None,
     ) -> None:
         """Initialize hybrid coordinator.
         
@@ -64,6 +65,7 @@ class EcoFlowHybridCoordinator(EcoFlowDataCoordinator):
             certificate_account: Certificate account for MQTT topics (same as username)
             mqtt_broker_url: MQTT broker URL from API (e.g., mqtt.ecoflow.com for US)
             mqtt_broker_port: MQTT broker port from API (default: 8883)
+            mqtt_client_id: MQTT client ID from API (if provided)
         """
         super().__init__(
             hass=hass,
@@ -80,6 +82,7 @@ class EcoFlowHybridCoordinator(EcoFlowDataCoordinator):
         self.certificate_account = certificate_account or mqtt_username
         self.mqtt_broker_url = mqtt_broker_url
         self.mqtt_broker_port = mqtt_broker_port
+        self.mqtt_client_id = mqtt_client_id
         
         self._mqtt_client: EcoFlowMQTTClient | None = None
         self._mqtt_data: dict[str, Any] = {}
@@ -159,6 +162,7 @@ class EcoFlowHybridCoordinator(EcoFlowDataCoordinator):
                 certificate_account=self.certificate_account,
                 broker_url=self.mqtt_broker_url,
                 broker_port=self.mqtt_broker_port,
+                client_id=self.mqtt_client_id,
             )
             
             # Try to connect

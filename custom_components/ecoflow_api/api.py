@@ -301,9 +301,12 @@ class EcoFlowApiClient:
         """
         result = await self._request("GET", "/iot-open/sign/certification")
         
-        # Log the response structure for debugging
-        _LOGGER.debug(
-            "MQTT credentials API response keys: %s",
+        # Log the FULL response structure for debugging MQTT authentication issues
+        _LOGGER.warning(
+            "🔍 MQTT Credentials API Full Response:\n"
+            "  Raw response: %s\n"
+            "  Response keys: %s",
+            {k: (v[:30] + "..." if isinstance(v, str) and len(v) > 30 else v) for k, v in result.items()} if isinstance(result, dict) else result,
             list(result.keys()) if isinstance(result, dict) else type(result)
         )
         
@@ -311,13 +314,25 @@ class EcoFlowApiClient:
         cert_password = result.get("certificatePassword")
         mqtt_url = result.get("url", "N/A")
         mqtt_port = result.get("port", "N/A")
+        client_id = result.get("clientId")  # Check if API returns a clientId
+        protocol = result.get("protocol")
         
-        _LOGGER.info(
-            "Received MQTT credentials: url=%s, port=%s, certificateAccount=%s, password_present=%s",
+        _LOGGER.warning(
+            "🔍 MQTT Credentials Parsed:\n"
+            "  url: %s\n"
+            "  port: %s\n"
+            "  protocol: %s\n"
+            "  certificateAccount: %s (length=%d)\n"
+            "  certificatePassword: %s (length=%d)\n"
+            "  clientId: %s",
             mqtt_url,
             mqtt_port,
-            cert_account[:20] + "..." if isinstance(cert_account, str) and len(cert_account) > 20 else cert_account,
-            "yes" if cert_password else "no",
+            protocol,
+            cert_account[:30] + "..." if isinstance(cert_account, str) and len(cert_account) > 30 else cert_account,
+            len(cert_account) if isinstance(cert_account, str) else 0,
+            "***" if cert_password else "MISSING!",
+            len(cert_password) if cert_password else 0,
+            client_id or "NOT PROVIDED",
         )
         
         return result

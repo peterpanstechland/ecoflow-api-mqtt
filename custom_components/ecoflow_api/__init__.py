@@ -88,6 +88,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     mqtt_broker_port = None
 
     # If MQTT enabled, get certificateAccount and certificatePassword from API
+    mqtt_client_id = None  # API may return a specific clientId to use
+    
     if mqtt_enabled:
         try:
             _LOGGER.info("MQTT enabled, fetching MQTT credentials from API...")
@@ -96,6 +98,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             certificate_password = mqtt_creds.get("certificatePassword")
             mqtt_broker_url = mqtt_creds.get("url")  # e.g., mqtt.ecoflow.com (US) or mqtt-e.ecoflow.com (EU)
             mqtt_broker_port_str = mqtt_creds.get("port")  # e.g., "8883"
+            mqtt_client_id = mqtt_creds.get("clientId")  # API may provide a specific client ID
             
             # Parse port (API may return string or int)
             if mqtt_broker_port_str:
@@ -105,16 +108,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     mqtt_broker_port = 8883  # Default
 
             if certificate_account and certificate_password:
-                _LOGGER.info(
-                    "✅ Received MQTT credentials from API: "
-                    "broker=%s:%s, "
-                    "certificateAccount=%s (length=%d), "
-                    "certificatePassword=*** (length=%d)",
+                _LOGGER.warning(
+                    "✅ MQTT credentials received:\n"
+                    "  broker: %s:%s\n"
+                    "  certificateAccount: %s (length=%d)\n"
+                    "  certificatePassword: *** (length=%d)\n"
+                    "  clientId from API: %s",
                     mqtt_broker_url or "default",
                     mqtt_broker_port or 8883,
-                    certificate_account[:20] + "..." if len(certificate_account) > 20 else certificate_account,
+                    certificate_account[:30] + "..." if len(certificate_account) > 30 else certificate_account,
                     len(certificate_account),
                     len(certificate_password),
+                    mqtt_client_id or "NOT PROVIDED (will use ha_ecoflow_<sn>)",
                 )
                 mqtt_username = certificate_account
                 mqtt_password = certificate_password
@@ -152,6 +157,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             certificate_account=certificate_account,  # Pass certificate account for topics
             mqtt_broker_url=mqtt_broker_url,  # Pass broker URL from API
             mqtt_broker_port=mqtt_broker_port,  # Pass broker port from API
+            mqtt_client_id=mqtt_client_id,  # Pass client ID from API if provided
         )
         # Set up MQTT
         await coordinator.async_setup()
