@@ -94,18 +94,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             certificate_password = mqtt_creds.get("certificatePassword")
 
             if certificate_account and certificate_password:
-                _LOGGER.info("Successfully obtained MQTT credentials from API")
+                _LOGGER.info(
+                    "✅ Received MQTT credentials from API: "
+                    "certificateAccount=%s (length=%d), "
+                    "certificatePassword=*** (length=%d)",
+                    certificate_account[:20] + "..." if len(certificate_account) > 20 else certificate_account,
+                    len(certificate_account),
+                    len(certificate_password),
+                )
                 mqtt_username = certificate_account
                 mqtt_password = certificate_password
             else:
                 _LOGGER.warning(
-                    "Failed to get MQTT credentials from API, using manual credentials if provided"
+                    "⚠️ Failed to get MQTT credentials from API response: %s",
+                    {k: v[:10] + "..." if isinstance(v, str) and len(v) > 10 else v for k, v in mqtt_creds.items()}
                 )
         except Exception as err:
             _LOGGER.error(
-                "Error fetching MQTT credentials: %s. Using manual credentials if provided.",
+                "❌ Error fetching MQTT credentials: %s. MQTT will be disabled.",
                 err,
             )
+            mqtt_enabled = False
 
     # Create coordinator (hybrid if MQTT enabled, otherwise standard)
     coordinator: EcoFlowDataCoordinator | EcoFlowHybridCoordinator

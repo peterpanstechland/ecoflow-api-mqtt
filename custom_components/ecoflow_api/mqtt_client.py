@@ -192,7 +192,18 @@ class EcoFlowMQTTClient:
         
         if rc == 0:
             self._connected = True
-            _LOGGER.info("MQTT connected for device %s", self.device_sn)
+            _LOGGER.info(
+                "✅ MQTT connected for device %s (broker: %s:%d)",
+                self.device_sn,
+                MQTT_BROKER,
+                MQTT_PORT
+            )
+            _LOGGER.debug(
+                "MQTT subscribed topics: quota=%s, status=%s, set_reply=%s",
+                self._quota_topic,
+                self._status_topic,
+                self._set_reply_topic
+            )
             
             # Subscribe to topics
             client.subscribe(self._quota_topic, qos=1)
@@ -208,16 +219,27 @@ class EcoFlowMQTTClient:
                 rc
             )
             _LOGGER.error(
-                "MQTT Authentication Troubleshooting:\n"
-                "1. Username should be EcoFlow account EMAIL (not access_key)\n"
-                "2. Password should be EcoFlow account PASSWORD\n"
-                "3. Verify credentials in Options (gear icon next to integration)\n"
-                "4. certificateAccount in topics might need to be user_id (not email)\n"
-                "   Current certificateAccount: %s (from %s)\n"
-                "   Topics: quota=%s, status=%s, set_reply=%s\n"
-                "5. If certificateAccount is wrong, you may need to get user_id from API",
-                self._certificate_account,
-                "username" if not hasattr(self, '_certificate_account') or self._certificate_account == self.username else "custom",
+                "MQTT Authentication Debug Info:\n"
+                "  Broker: %s:%d\n"
+                "  Username (certificateAccount): %s\n"
+                "  Password length: %d chars\n"
+                "  Certificate account for topics: %s\n"
+                "  Topics:\n"
+                "    - quota: %s\n"
+                "    - status: %s\n"
+                "    - set_reply: %s\n"
+                "\n"
+                "Troubleshooting Steps:\n"
+                "1. MQTT credentials should be auto-fetched from EcoFlow API (/iot-open/sign/certification)\n"
+                "2. If credentials are missing, check API access_key and secret_key are valid\n"
+                "3. Try disabling and re-enabling MQTT in integration options\n"
+                "4. Check Home Assistant logs for 'Received MQTT credentials' message\n"
+                "5. Ensure your EcoFlow Developer account has MQTT access enabled",
+                MQTT_BROKER,
+                MQTT_PORT,
+                self.username[:20] + "..." if len(self.username) > 20 else self.username,
+                len(self.password) if self.password else 0,
+                self._certificate_account[:20] + "..." if len(self._certificate_account) > 20 else self._certificate_account,
                 self._quota_topic,
                 self._status_topic,
                 self._set_reply_topic
